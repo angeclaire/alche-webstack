@@ -1,18 +1,25 @@
 #!/usr/bin/env bash
-# Displays DNS information about subdomains
-
+# Displays DNS record info for a domain's key subdomains.
+# shellcheck disable=SC2086
 domain=$1
 subdomain=$2
 
-get_dns_info() {
-    dig "$1.$domain" | awk '/ANSWER SECTION:/ {getline; print "The subdomain '"$1"' is a "$4" record and points to "$5}'
+get_subdomain_info() {
+    local sub="$1"
+    local fqdn="$2"
+    local info record_type destination
+
+    info=$(dig $fqdn | awk '/^;; ANSWER SECTION:/{getline; print $4, $5}')
+    record_type=$(echo "$info" | awk '{print $1}')
+    destination=$(echo "$info" | awk '{print $2}')
+
+    echo "The subdomain $sub is a $record_type record and points to $destination"
 }
 
-if [ -z "$subdomain" ]; then
-    get_dns_info www
-    get_dns_info lb-01
-    get_dns_info web-01
-    get_dns_info web-02
+if [ -n "$subdomain" ]; then
+    get_subdomain_info "$subdomain" "$subdomain.$domain"
 else
-    get_dns_info "$subdomain"
+    for sub in www lb-01 web-01 web-02; do
+        get_subdomain_info "$sub" "$sub.$domain"
+    done
 fi
